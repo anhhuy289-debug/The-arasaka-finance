@@ -1,8 +1,4 @@
 {
-  "name": "arasaka-finance-functions",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "@netlify/neon": "^0.2.0"
-  }
+  "name": "arasaka-functions",
+  "version": "1.0.0"
 }

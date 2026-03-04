@@ -1,57 +1,31 @@
-import { neon } from '@netlify/neon';
+const { neon } = require('@netlify/neon');
 
 const USER_ID = 'default';
+const headers = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type'
+};
 
-function corsHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-  };
-}
-
-export default async function handler(req, context) {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders() });
-  }
-
+exports.handler = async function(event, context) {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   const sql = neon();
 
   try {
-    if (req.method === 'GET') {
-      const rows = await sql`
-        SELECT * FROM user_settings WHERE user_id = ${USER_ID}
-      `;
-      return new Response(JSON.stringify(rows[0] || {}), {
-        status: 200, headers: corsHeaders()
-      });
+    if (event.httpMethod === 'GET') {
+      const rows = await sql`SELECT * FROM user_settings WHERE user_id = ${USER_ID}`;
+      return { statusCode: 200, headers, body: JSON.stringify(rows[0] || {}) };
     }
-
-    if (req.method === 'POST') {
-      const { currency, budgets } = await req.json();
-      await sql`
-        INSERT INTO user_settings (user_id, currency, budgets, updated_at)
+    if (event.httpMethod === 'POST') {
+      const { currency, budgets } = JSON.parse(event.body);
+      await sql`INSERT INTO user_settings (user_id, currency, budgets, updated_at)
         VALUES (${USER_ID}, ${currency}, ${JSON.stringify(budgets)}, NOW())
-        ON CONFLICT (user_id) DO UPDATE
-          SET currency = EXCLUDED.currency,
-              budgets = EXCLUDED.budgets,
-              updated_at = NOW()
-      `;
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200, headers: corsHeaders()
-      });
+        ON CONFLICT (user_id) DO UPDATE SET currency=EXCLUDED.currency, budgets=EXCLUDED.budgets, updated_at=NOW()`;
+      return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
     }
-
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: corsHeaders()
-    });
-
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
   } catch (err) {
-    return new Response(JSON.stringify({ ok: false, error: err.message }), {
-      status: 500, headers: corsHeaders()
-    });
+    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
   }
-}
-
-export const config = { path: '/api/settings' };
+};
